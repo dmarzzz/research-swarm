@@ -1,0 +1,5 @@
+"""Enables `python -m research_agent "your question"`."""
+from research_agent.main import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

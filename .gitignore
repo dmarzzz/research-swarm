@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Environment (contains API keys)
+.env
+.env.local
+
+# DSPy caches and compiled programs
+.dspy_cache/
+cache/
+compiled/
+*.compiled.json
+
+# fetch_url on-disk cache
+.ra_cache/
+
+# Research agent run logs — may contain sensitive queries / syntheses.
+# Do not commit.
+runs/
+
+# Tool-call traces (JSONL).
+traces/
+
+# The world_knowledge archive accumulates fetched page content on disk.
+# It's at ~/world_knowledge/ by default, not inside the repo, but gitignore
+# an in-tree copy just in case.
+world_knowledge/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
