@@ -8,7 +8,10 @@ yet written) to tune the prompts for your research style.
 
 from __future__ import annotations
 
+import functools
 import os
+import sys
+import time
 
 import dspy
 
@@ -26,6 +29,50 @@ from research_agent.tools import (
     verify_arxiv_citations,
     web_search,
 )
+
+
+# ── live tool trace ───────────────────────────────────────────────────────
+
+
+def _short(x, n: int = 72) -> str:
+    """Compact repr, clamped to n chars."""
+    s = repr(x) if not isinstance(x, str) else x
+    s = s.replace("\n", " ")
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def _trace_tool(fn):
+    """Wrap a ReAct tool so the CLI shows a live call line on stderr.
+
+    Default: on. Suppress with `RA_QUIET=1` for scripts / batch runs.
+    Preserves `__name__` and `__doc__` so DSPy's ReAct prompt-builder
+    still reads the tool's docstring correctly.
+    """
+    name = fn.__name__
+
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        if os.environ.get("RA_QUIET") not in ("1", "true", "yes"):
+            parts = [_short(a, 56) for a in args]
+            parts += [f"{k}={_short(v, 40)}" for k, v in kwargs.items()]
+            sig = ", ".join(parts)
+            print(f"  ▸ {name}({sig})", file=sys.stderr, flush=True)
+            t0 = time.time()
+        try:
+            out = fn(*args, **kwargs)
+        except Exception as exc:
+            if os.environ.get("RA_QUIET") not in ("1", "true", "yes"):
+                print(f"    ↳ error · {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            raise
+        if os.environ.get("RA_QUIET") not in ("1", "true", "yes"):
+            ms = int((time.time() - t0) * 1000)
+            head = (out or "").splitlines()[0] if isinstance(out, str) else ""
+            head = head.strip().strip("[]")[:80] if head else ""
+            suffix = f" · {head}" if head else ""
+            print(f"    ↳ {ms}ms{suffix}", file=sys.stderr, flush=True)
+        return out
+
+    return wrapped
 
 
 # ── LM configuration ──────────────────────────────────────────────────────
@@ -59,10 +106,18 @@ def configure_lm() -> None:
     provider = model.split("/", 1)[0] if "/" in model else ""
     needs_key = provider not in ("ollama", "ollama_chat")
     if needs_key and not api_key:
-        raise RuntimeError(
-            f"No API key found for provider '{provider}'. "
-            "Set LM_API_KEY (or ANTHROPIC_API_KEY for Anthropic) in your .env file."
+        msg = (
+            f"\n  No LM configured (provider={provider!r} needs a key).\n"
+            "\n"
+            "  Pick one:\n"
+            "    a) fully local (no key):  echo 'LM_MODEL=ollama/qwen3:35b' >> .env\n"
+            "                              (requires Ollama running; see ollama.com)\n"
+            "    b) anthropic:             echo 'ANTHROPIC_API_KEY=sk-ant-...' >> .env\n"
+            "    c) any litellm provider:  see https://docs.litellm.ai/docs/providers\n"
+            "\n"
+            "  Then rerun.\n"
         )
+        raise SystemExit(msg)
 
     lm_kwargs: dict = dict(
         max_tokens=int(os.environ.get("LM_MAX_TOKENS", "16384")),
@@ -184,21 +239,24 @@ def build_agent() -> dspy.Module:
     local archive has no matches (or they look stale).
     """
     max_iters = int(os.environ.get("MAX_ITERS", "28"))
-    return dspy.ReAct(
-        ResearchTask,
-        tools=[
-            local_search,
-            web_search,
-            expanded_search,
-            nitter_search,
-            arxiv_search,
-            semantic_scholar_search,
-            github_search,
-            fetch_url,
-            fetch_urls_parallel,
-            arxiv_fetch_paper,
-            extract_links,
-            verify_arxiv_citations,
-        ],
-        max_iters=max_iters,
-    )
+    raw_tools = [
+        local_search,
+        web_search,
+        expanded_search,
+        nitter_search,
+        arxiv_search,
+        semantic_scholar_search,
+        github_search,
+        fetch_url,
+        fetch_urls_parallel,
+        arxiv_fetch_paper,
+        extract_links,
+        verify_arxiv_citations,
+    ]
+    # Wrap each tool so the CLI can show a live trace of what the agent
+    # picks on each turn. Set RA_QUIET=1 to suppress. The library import
+    # path is unaffected; users importing `build_agent` programmatically
+    # still get plain-stderr tool calls unless they explicitly set the
+    # env var.
+    tools = [_trace_tool(t) for t in raw_tools]
+    return dspy.ReAct(ResearchTask, tools=tools, max_iters=max_iters)
