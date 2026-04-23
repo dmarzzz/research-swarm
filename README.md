@@ -10,7 +10,7 @@
 
 </div>
 
-A small, scrappy research agent. Point it at a question. It picks tools, reads pages, and writes you back a grounded answer with real citations. Every page it reads lands in a local archive so the next time you ask something adjacent, it answers faster and from material it already trusts.
+A small, scrappy [DSPy](https://github.com/stanfordnlp/dspy) [ReAct](https://arxiv.org/abs/2210.03629) research agent. Point it at a question. It picks tools, reads pages, and writes you back a grounded answer with real citations. Every page it reads lands in a local archive so the next time you ask something adjacent, it answers faster and from material it already trusts.
 
 No API keys required. Works fully local with Ollama. Works remote with any [litellm](https://github.com/BerriAI/litellm) provider.
 
@@ -131,6 +131,27 @@ The archive grows every query. After a week of use on the same topic, most of wh
 
 ---
 
+## Research traces
+
+Every run writes a JSON trace to `runs/YYYYMMDD-HHMMSS-<slug>.json`: the question, every tool call with inputs and result sizes, the synthesis, sources, and critique. The trace is the unit of reproducibility. You can replay a run, diff two runs on the same question, or hand the file to a downstream tool.
+
+```bash
+$ research-agent "what is Loopix and how does it beat Tor?"
+...
+$ ls runs/
+20260423-140321-loopix-vs-tor.json
+```
+
+The traces are also the input format [`content-pipeline`](https://github.com/dmarzzz/content-pipeline) consumes to generate a blog post, tweet thread, or explainer video from a research run:
+
+```bash
+rotate content --trace research-swarm/runs/20260423-140321-loopix-vs-tor.json
+```
+
+Once you have ~20 traces you're happy with, they're also training data for `dspy.teleprompt.MIPROv2` to compile prompts tuned to your research style.
+
+---
+
 ## The tool zoo
 
 The agent picks from these each turn based on the tool's docstring:
@@ -243,7 +264,7 @@ src/research_agent/
     └── canonical.py  URL normalization (RFC 3986 + tracking-param strip)
 ```
 
-Every run lands in `runs/YYYYMMDD-HHMMSS-<slug>.json` with question, synthesis, sources, critique. Review them, keep the ones you like, and once you have ~20 accepted examples you can feed them to `dspy.teleprompt.MIPROv2` to compile tuned prompts for your research style.
+Every run lands in `runs/YYYYMMDD-HHMMSS-<slug>.json`. See [Research traces](#research-traces) above.
 
 ---
 
