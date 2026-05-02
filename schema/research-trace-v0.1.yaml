@@ -1,0 +1,327 @@
+# Research Trace Schema v0.1
+#
+# A structured format for capturing the full trace of an AI research
+# agent's work. Inspired by the dual-layer model from
+# blog.dmarz.xyz — the "rendered frame" (human layer) and the
+# "latent state" (agent layer).
+#
+# Design principles:
+#   1. One master schema, multiple consumer views
+#   2. Provenance chains are first-class (claim → source → query)
+#   3. Negative results are signal, not absence
+#   4. The trace should be prompt-injectable by other agents
+#   5. Steal from: OpenTelemetry (spans), LangSmith (run types),
+#      W3C PROV (provenance DAG), RO-Crate (artifact packaging)
+#
+# Consumer projections (derived from master, not separately authored):
+#   tldr_card          → Human Skimmer (≤150 words)
+#   verification_pack  → Human Verifier (claim→source→query chains)
+#   context_block      → Another AI Agent (prompt-injectable)
+#   dspy_example       → MIPRO/Optimizer (input/output/score)
+#   judge_payload      → LLM-as-Judge (question/synthesis/rubric)
+#   cache_entry        → Future Self (embeddings + dead_ends)
+#   audit_log          → Auditor (hash-chained tool calls)
+
+---
+# ============================================================
+# MASTER TRACE
+# ============================================================
+
+trace:
+  # ── Identity ──────────────────────────────────────────────
+  id:
+    type: string
+    format: uuid
+    description: Globally unique trace identifier.
+
+  trace_id:
+    type: string
+    format: uuid
+    description: >
+      Groups related runs into a single exploration session.
+      All runs in one research session share the same trace_id.
+
+  parent_id:
+    type: string?
+    format: uuid
+    description: >
+      If this trace is a sub-trace (e.g. one rotation of a
+      multi-rotation query), points to the parent trace.
+
+  # ── Session Metadata ──────────────────────────────────────
+  title:
+    type: string
+    description: Human-readable title for the exploration session.
+
+  date:
+    type: string
+    format: date (YYYY-MM-DD)
+    description: The date the exploration session occurred.
+
+  timestamp_start:
+    type: string
+    format: datetime (ISO 8601)
+
+  timestamp_end:
+    type: string
+    format: datetime (ISO 8601)
+
+  status:
+    type: enum
+    values: [complete, partial, failed]
+    description: Whether the trace completed successfully.
+
+  # ── Provenance ────────────────────────────────────────────
+  agent:
+    model_id:
+      type: string
+      description: The LLM model used (e.g. "claude-sonnet-4-6").
+    framework:
+      type: string
+      description: The agent framework (e.g. "dspy-react").
+    prompt_version:
+      type: string
+      description: >
+        Version tag for the prompt/signature. Allows filtering
+        runs by prompt generation for MIPRO compilation.
+    tools:
+      type: string[]
+      description: Tools available to the agent.
+
+  # ── Human Layer (the rendered frame) ──────────────────────
+  human:
+    tldr:
+      type: string
+      max_words: 150
+      description: >
+        The 10-second takeaway. Generated LAST, after the full
+        trace is complete. A distillation, not a summary of process.
+
+    key_findings:
+      type: string[]
+      max_items: 5
+      description: 3-5 bullet points for the skimmer.
+
+    confidence:
+      type: enum
+      values: [high, medium, low, mixed]
+      description: Overall confidence in the findings.
+
+    areas_explored:
+      type: Area[]
+      description: >
+        Named areas of exploration with short descriptions.
+        These are the "chapters" of the research session.
+
+  # ── Research Content (the core) ───────────────────────────
+  question:
+    type: string
+    description: The original research question or prompt.
+
+  synthesis:
+    type: string
+    format: markdown
+    description: >
+      Full prose synthesis. For comparative tasks, includes
+      markdown tables. This is the primary output.
+
+  sources:
+    type: Source[]
+    description: Every source cited in the synthesis.
+
+  # ── Provenance Chains (biggest information loss to fix) ───
+  claims:
+    type: Claim[]
+    description: >
+      Each non-trivial claim in the synthesis, linked to the
+      specific evidence that supports it. This is the field
+      that lets a verifier fact-check without re-running the agent.
+
+  # ── Search Methodology ────────────────────────────────────
+  searches:
+    queries_run:
+      type: SearchQuery[]
+      description: Every search query executed, with results.
+
+    dead_ends:
+      type: SearchQuery[]
+      description: >
+        Queries that returned nothing useful. Critical signal:
+        documents thoroughness of gap-finding and tells future
+        agents which searches are known to be fruitless.
+
+    tools_used:
+      type: string[]
+      description: Which tools were actually invoked.
+
+  # ── Self-Critique ─────────────────────────────────────────
+  critique:
+    overall_verdict:
+      type: string
+    grounding_score:
+      type: integer
+      range: [1, 5]
+    coverage_gaps:
+      type: string[]
+    likely_errors:
+      type: string[]
+    suggested_prompt_tweak:
+      type: string
+
+  # ── Reasoning Trajectory ──────────────────────────────────
+  trajectory:
+    type: TrajectoryStep[]
+    description: >
+      The full ReAct loop: (thought, action, observation) tuples.
+      Currently the second-most-valuable information we throw away.
+      Enables debugging, replay, and trajectory-level optimization.
+
+  # ── Cost & Resources ──────────────────────────────────────
+  cost:
+    tokens_input:
+      type: integer
+    tokens_output:
+      type: integer
+    api_calls:
+      type: integer
+    wall_clock_seconds:
+      type: float
+    estimated_cost_usd:
+      type: float
+
+  # ── Inter-Run Relationships ───────────────────────────────
+  relationships:
+    builds_on:
+      type: string[]
+      description: trace_ids this run builds on.
+    supersedes:
+      type: string?
+      description: trace_id this run replaces.
+    contradicts:
+      type: string[]
+      description: trace_ids with conflicting findings.
+
+  # ── Staleness ─────────────────────────────────────────────
+  staleness:
+    knowledge_cutoff:
+      type: string
+      format: date
+      description: When the underlying model's training data ends.
+    expires:
+      type: string?
+      format: date
+      description: When these findings should be reverified.
+    reverify_triggers:
+      type: string[]
+      description: >
+        Conditions that would invalidate these findings.
+        E.g. "new ICML/NeurIPS proceedings published",
+        "AWS Clean Rooms adds RL support".
+
+  # ── Derived Views ─────────────────────────────────────────
+  views:
+    context_block:
+      type: string
+      description: >
+        Pre-formatted string designed to be dropped directly
+        into another agent's context window. Written in second
+        person ("The prior agent found that..."). Includes
+        explicit markers for established vs uncertain claims.
+
+    dspy_example:
+      type: object
+      description: >
+        MIPRO-compatible format: inputs dict, outputs dict,
+        quality score. Ready for dspy.Example.with_inputs().
+
+    judge_payload:
+      type: object
+      description: >
+        LLM-as-judge format: question, synthesis, rubric,
+        optional ground_truth and reference_synthesis.
+
+# ============================================================
+# SUPPORTING TYPES
+# ============================================================
+
+Area:
+  name:
+    type: string
+    description: Short name for this area of exploration.
+  description:
+    type: string
+    description: 1-2 sentence description.
+  run_ids:
+    type: string[]
+    description: Which runs explored this area.
+
+Source:
+  id:
+    type: string
+  type:
+    type: enum
+    values: [arxiv, github, web, blog, patent, product, conference]
+  url:
+    type: string
+  title:
+    type: string?
+  retrieved_snippet:
+    type: string?
+    description: The exact text retrieved by the tool.
+  query_that_found_it:
+    type: string?
+    description: The search query that surfaced this source.
+
+Claim:
+  id:
+    type: string
+  text:
+    type: string
+    description: The claim as stated in the synthesis.
+  confidence:
+    type: float
+    range: [0, 1]
+  source_ids:
+    type: string[]
+    description: Which sources support this claim.
+  evidence_snippets:
+    type: string[]
+    description: Exact quotes from sources.
+  retrieval_method:
+    type: string
+    description: Which tool + query produced the evidence.
+
+SearchQuery:
+  query:
+    type: string
+  tool:
+    type: enum
+    values: [web_search, arxiv_search, github_search]
+  timestamp:
+    type: string
+    format: datetime
+  result_count:
+    type: integer
+  useful:
+    type: boolean
+    description: Whether the results contributed to the synthesis.
+  notes:
+    type: string?
+    description: Why this query was or wasn't useful.
+
+TrajectoryStep:
+  step:
+    type: integer
+  thought:
+    type: string
+  action:
+    type: string
+    description: Tool name invoked.
+  action_args:
+    type: object
+  observation:
+    type: string
+    description: Tool result (may be truncated for size).
+  timestamp:
+    type: string
+    format: datetime
