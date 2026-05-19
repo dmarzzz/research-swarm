@@ -8,7 +8,11 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import contextlib
+import io
 import os
+import subprocess
 import sys
 import textwrap
 from datetime import date
@@ -130,7 +134,7 @@ def _welcome() -> None:
     banner = f"""
      {DIM}·   ·{RESET}
   {DIM}·{RESET}  {CYAN}◆{RESET}    {DIM}·   ·{RESET}        {BOLD}research-swarm{RESET}  {DIM}v{__version__}{RESET}
-{DIM}·{RESET}   {CYAN}◆{RESET}   {CYAN}◆{RESET}   {CYAN}◆{RESET}   {DIM}·{RESET}      a DSPy ReAct agent that thinks out loud,
+{DIM}·{RESET}   {CYAN}◆{RESET}   {CYAN}◆{RESET}   {CYAN}◆{RESET}   {DIM}·{RESET}      a research harness that thinks out loud,
   {CYAN}◆{RESET}   {DIM}·{RESET}   {CYAN}◆{RESET}   {DIM}·{RESET}        cites its sources, and remembers what you
      {DIM}·   ·{RESET}              asked last time.
 """
@@ -138,10 +142,12 @@ def _welcome() -> None:
 {BOLD}try:{RESET}
   {DIM}$ {RESET}research-agent {CYAN}"what is Loopix and how does it beat Tor?"{RESET}
   {DIM}$ {RESET}research-agent {DIM}--parallel{RESET} {CYAN}"survey modern post-quantum signature schemes"{RESET}
+  {DIM}$ {RESET}research-agent {DIM}--backend dspy{RESET} {CYAN}"use the original DSPy backend"{RESET}
   {DIM}$ {RESET}research-agent {DIM}--no-critique{RESET} {CYAN}"quick lookup, skip the review"{RESET}
 
 {BOLD}setup:{RESET}
-  {DIM}$ {RESET}cp .env.example .env       {DIM}# pick an LM (Ollama, Anthropic, OpenAI, ...){RESET}
+  {DIM}$ {RESET}research-agent doctor      {DIM}# check Codex and DSPy backend readiness{RESET}
+  {DIM}$ {RESET}cp .env.example .env       {DIM}# optional DSPy LM config / backend tuning{RESET}
   {DIM}$ {RESET}research-agent --help      {DIM}# all options{RESET}
 
 {DIM}docs: https://github.com/dmarzzz/research-swarm{RESET}
@@ -150,11 +156,18 @@ def _welcome() -> None:
     sys.stderr.write(examples)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "doctor":
+        from research_agent.backends.codex import CodexConfig
+
+        config = CodexConfig.from_env()
+        return asyncio.run(_doctor(config))
+
     parser = argparse.ArgumentParser(
         prog="research-agent",
         description=(
-            "a DSPy ReAct agent that researches a question, cites its "
+            "a research agent that researches a question, cites its "
             "sources, grows a local archive as it reads, and self-critiques "
             "its answers."
         ),
@@ -167,6 +180,9 @@ def main() -> int:
               research-agent --no-critique "quick lookup, skip review"
 
             common env vars (put in .env):
+              RA_BACKEND=auto                    default backend; --backend overrides
+              CODEX_MODEL=gpt-5.4                optional Codex app-server model
+              CODEX_EFFORT=low                   Codex reasoning effort
               LM_MODEL=ollama/qwen3:35b        fully-local LM, no key needed
               LM_MODEL=anthropic/...           + ANTHROPIC_API_KEY
               RA_WORLD_KNOWLEDGE_DIR=/path     override default ~/world_knowledge/
@@ -188,6 +204,31 @@ def main() -> int:
         help="Parallel worker count (default 3, or PARALLEL_WORKERS env).",
     )
     parser.add_argument(
+        "--backend",
+        choices=["auto", "codex", "dspy"],
+        default=None,
+        help=(
+            "Research backend. Overrides RA_BACKEND from .env/the shell. "
+            "auto uses DSPy if configured, else Codex fallback."
+        ),
+    )
+    parser.add_argument(
+        "--codex-model",
+        default=None,
+        help="Codex model override for the codex backend.",
+    )
+    parser.add_argument(
+        "--codex-effort",
+        default=None,
+        help="Codex reasoning effort override (default CODEX_EFFORT or low).",
+    )
+    parser.add_argument(
+        "--codex-timeout",
+        type=float,
+        default=None,
+        help="Codex turn timeout in seconds (default CODEX_TIMEOUT_SEC or 600).",
+    )
+    parser.add_argument(
         "--no-critique", action="store_true",
         help="Skip the self-critique pass.",
     )
@@ -198,7 +239,7 @@ def main() -> int:
     parser.add_argument(
         "--version", action="version", version=f"research-swarm {__version__}",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if not args.question:
         _welcome()
@@ -208,33 +249,92 @@ def main() -> int:
         os.environ["RA_QUIET"] = "1"
 
     question = " ".join(args.question)
+    return asyncio.run(_amain(args, question))
 
-    # LM config up front so a missing key surfaces immediately as a
-    # friendly error (see SystemExit raised by configure_lm).
-    from research_agent.agent import configure_lm
 
-    configure_lm()
+async def _amain(args, question: str) -> int:
+    from research_agent.backends.codex import (
+        CodexConfig,
+        arun_codex_parallel,
+        run_codex_critique,
+    )
+    from research_agent.backends.select import build_runner, choose_backend
+    from research_agent.types import ResearchResult
+
+    codex_config = CodexConfig.from_env(
+        codex_model=args.codex_model,
+        codex_effort=args.codex_effort,
+        codex_timeout=args.codex_timeout,
+    )
+    choice = await choose_backend(args.backend, codex_config=codex_config)
+
+    if choice.selected == "dspy":
+        # LM config up front so a missing key surfaces immediately as a
+        # friendly error (see SystemExit raised by configure_lm).
+        from research_agent.agent import configure_lm
+
+        configure_lm()
 
     mode = "parallel" if args.parallel else "single"
-    _print_banner(question, mode=mode, critic_on=not args.no_critique)
+    mode_label = f"{mode} · {choice.selected}"
+    _print_banner(question, mode=mode_label, critic_on=not args.no_critique)
+    if args.backend is None or choice.requested == "auto":
+        print(f"{DIM}backend{RESET} {choice.selected} · {choice.reason}", file=sys.stderr)
+        print(file=sys.stderr)
 
     if args.parallel:
-        from research_agent.parallel import run_parallel
+        if choice.selected == "codex":
+            result = await arun_codex_parallel(
+                question,
+                max_workers=args.workers,
+                config=codex_config,
+            )
+        else:
+            from research_agent.parallel import run_parallel
 
-        synthesis, sources, _ = run_parallel(question, max_workers=args.workers)
+            synthesis, sources, sub_results = await asyncio.to_thread(
+                run_parallel,
+                question,
+                args.workers,
+            )
+            result = ResearchResult(
+                synthesis=synthesis,
+                sources=sources,
+                backend="dspy",
+                sub_results=[
+                    {
+                        "sub_question": sr.sub_question,
+                        "synthesis": sr.synthesis,
+                        "sources": sr.sources,
+                    }
+                    for sr in sub_results
+                ],
+            )
     else:
-        from research_agent.agent import build_agent
+        runner = build_runner(choice, codex_config=codex_config)
+        result = await runner.arun(question, current_date=date.today().isoformat())
 
-        agent = build_agent()
-        result = agent(current_date=date.today().isoformat(), question=question)
-        synthesis = result.synthesis
-        sources = result.sources if isinstance(result.sources, list) else [result.sources]
+    synthesis = result.synthesis
+    sources = result.sources
 
     _print_output(synthesis, sources)
 
     critique = None
     if not args.no_critique:
-        critique = _run_critique(question, synthesis, sources)
+        if choice.selected == "codex":
+            try:
+                print(f"{DIM}▸ self-critique...{RESET}", file=sys.stderr)
+                critique = await run_codex_critique(
+                    question,
+                    synthesis,
+                    sources,
+                    config=codex_config,
+                )
+            except Exception as exc:
+                print(f"{YELLOW}critic failed: {exc}{RESET}", file=sys.stderr)
+                critique = None
+        else:
+            critique = await asyncio.to_thread(_run_critique, question, synthesis, sources)
         _print_critique(critique)
 
     # Persistent run log.
@@ -246,12 +346,56 @@ def main() -> int:
             synthesis=synthesis,
             sources=sources,
             critique=critique,
+            backend=result.backend,
+            tool_calls=result.tool_calls,
+            sub_results=result.sub_results,
+            backend_meta=result.backend_meta,
         )
         print(f"{DIM}→ run saved to {path}{RESET}", file=sys.stderr)
     except Exception as exc:
         print(f"{YELLOW}log_run failed: {exc}{RESET}", file=sys.stderr)
 
     return 0
+
+
+async def _doctor(codex_config) -> int:
+    from research_agent.backends.codex import codex_smoke_check
+    from research_agent.backends.select import choose_backend
+
+    print("research-swarm doctor")
+    print()
+    try:
+        version = subprocess.run(
+            [codex_config.codex_bin, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        codex_version = (version.stdout or version.stderr).strip() or f"exit {version.returncode}"
+    except Exception as exc:
+        codex_version = f"{type(exc).__name__}: {exc}"
+    print(f"codex binary: {codex_config.codex_bin}")
+    print(f"codex version: {codex_version}")
+
+    ok, message = await codex_smoke_check(codex_config)
+    print(f"codex backend: {'ok' if ok else 'unavailable'} · {message}")
+
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            from research_agent.agent import configure_lm
+
+            configure_lm()
+        dspy_message = "ok"
+    except SystemExit as exc:
+        dspy_message = str(exc).strip().splitlines()[0] if str(exc).strip() else "not configured"
+    except Exception as exc:
+        dspy_message = f"{type(exc).__name__}: {exc}"
+    print(f"dspy backend: {dspy_message}")
+
+    choice = await choose_backend(None, codex_config=codex_config)
+    print(f"default backend: {choice.selected} · {choice.reason}")
+    return 0 if ok or dspy_message == "ok" else 1
 
 
 if __name__ == "__main__":
