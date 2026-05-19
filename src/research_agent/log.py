@@ -39,6 +39,10 @@ def log_run(
     synthesis: str,
     sources: list[str],
     critique: Any | None = None,
+    backend: str | None = None,
+    tool_calls: list[Any] | None = None,
+    sub_results: list[Any] | None = None,
+    backend_meta: dict[str, Any] | None = None,
     prompt_version: str = "v2",
     runs_dir: Path | str = "runs",
 ) -> Path:
@@ -71,9 +75,26 @@ def log_run(
                 "synthesis": synthesis,
                 "sources": sources,
                 "critique": critique_data,
+                "backend": backend,
+                "tool_calls": [_serialize(item) for item in (tool_calls or [])],
+                "sub_results": [_serialize(item) for item in (sub_results or [])],
+                "backend_meta": backend_meta or {},
             },
             indent=2,
             default=str,
         )
     )
     return path
+
+
+def _serialize(value: Any) -> Any:
+    if hasattr(value, "__dataclass_fields__"):
+        return {
+            field: _serialize(getattr(value, field))
+            for field in value.__dataclass_fields__  # type: ignore[attr-defined]
+        }
+    if isinstance(value, dict):
+        return {str(k): _serialize(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_serialize(item) for item in value]
+    return value

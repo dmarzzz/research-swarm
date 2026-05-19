@@ -7,15 +7,20 @@ sub-syntheses into a single grounded answer.
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
-from typing import NamedTuple
+from collections.abc import Callable
+from typing import Any, NamedTuple
 
 import dspy
 
-from research_agent.agent import ResearchTask, build_agent
+from research_agent.agent import build_agent
+from research_agent.backends.base import ResearchRunner
+from research_agent.types import ResearchResult
 
 
 # ── Decomposition signature ───────────────────────────────────────────
@@ -81,6 +86,11 @@ class SubResult(NamedTuple):
     sub_question: str
     synthesis: str
     sources: list[str]
+
+
+class AsyncSubResult(NamedTuple):
+    sub_question: str
+    result: ResearchResult
 
 
 # ── Public API ────────────────────────────────────────────────────────
@@ -156,6 +166,88 @@ def run_parallel(question: str, max_workers: int | None = None) -> tuple[str, li
     return merged.synthesis, final_sources, sub_results
 
 
+async def arun_parallel(
+    question: str,
+    *,
+    runner_factory: Callable[[], ResearchRunner],
+    max_workers: int | None = None,
+    decompose_fn: Callable[[str], Any] | None = None,
+    merge_fn: Callable[..., Any] | None = None,
+) -> ResearchResult:
+    """Backend-neutral async Decompose → fan-out → merge.
+
+    ``decompose_fn`` and ``merge_fn`` can be sync or async. When omitted,
+    the existing DSPy decomposition and merge signatures are used.
+    """
+    workers = max_workers or int(os.environ.get("PARALLEL_WORKERS", "3"))
+
+    print(f"\n▸ decomposing question into sub-questions...", file=sys.stderr)
+    if decompose_fn is None:
+        sub_questions = await asyncio.to_thread(decompose, question)
+    else:
+        sub_questions = await _maybe_await(decompose_fn(question))
+    for i, sq in enumerate(sub_questions, 1):
+        print(f"  {i}. {sq}", file=sys.stderr)
+    print(file=sys.stderr)
+
+    semaphore = asyncio.Semaphore(workers)
+
+    async def run_one(sub_q: str) -> AsyncSubResult:
+        async with semaphore:
+            result = await runner_factory().arun(sub_q, current_date=date.today().isoformat())
+            print(f"  ✓ done: {sub_q[:70]}...", file=sys.stderr)
+            return AsyncSubResult(sub_question=sub_q, result=result)
+
+    tasks = [asyncio.create_task(run_one(sq)) for sq in sub_questions]
+    sub_results: list[AsyncSubResult] = []
+    for task in asyncio.as_completed(tasks):
+        try:
+            sub_results.append(await task)
+        except Exception as exc:
+            print(f"  ✗ failed sub-question: {exc}", file=sys.stderr)
+
+    if not sub_results:
+        raise RuntimeError("All sub-questions failed.")
+
+    order = {sq: i for i, sq in enumerate(sub_questions)}
+    sub_results.sort(key=lambda sr: order.get(sr.sub_question, 99))
+    all_sources = _dedup_sources(source for sr in sub_results for source in sr.result.sources)
+
+    print(f"\n▸ merging {len(sub_results)} sub-syntheses...", file=sys.stderr)
+    sub_questions_done = [sr.sub_question for sr in sub_results]
+    sub_syntheses = [sr.result.synthesis for sr in sub_results]
+    if merge_fn is None:
+        merged = await asyncio.to_thread(
+            _merge_with_dspy,
+            question,
+            sub_questions_done,
+            sub_syntheses,
+            all_sources,
+        )
+    else:
+        merged = await _maybe_await(
+            merge_fn(
+                original_question=question,
+                sub_questions=sub_questions_done,
+                sub_syntheses=sub_syntheses,
+                all_sources=all_sources,
+            )
+        )
+
+    merged.sub_results = [
+        {
+            "sub_question": sr.sub_question,
+            "synthesis": sr.result.synthesis,
+            "sources": sr.result.sources,
+            "backend": sr.result.backend,
+            "tool_calls": sr.result.tool_calls,
+            "backend_meta": sr.result.backend_meta,
+        }
+        for sr in sub_results
+    ]
+    return merged
+
+
 def _dedup_sources(sources) -> list[str]:
     """Deduplicate while preserving order."""
     seen: set[str] = set()
@@ -165,3 +257,30 @@ def _dedup_sources(sources) -> list[str]:
             seen.add(s)
             result.append(s)
     return result
+
+
+def _merge_with_dspy(
+    question: str,
+    sub_questions: list[str],
+    sub_syntheses: list[str],
+    all_sources: list[str],
+) -> ResearchResult:
+    merger = dspy.ChainOfThought(MergeSyntheses)
+    merged = merger(
+        original_question=question,
+        sub_questions=sub_questions,
+        sub_syntheses=sub_syntheses,
+        all_sources=all_sources,
+    )
+    final_sources = merged.sources if isinstance(merged.sources, list) else [merged.sources]
+    return ResearchResult(
+        synthesis=merged.synthesis,
+        sources=final_sources,
+        backend="dspy",
+    )
+
+
+async def _maybe_await(value: Any) -> Any:
+    if inspect.isawaitable(value):
+        return await value
+    return value
