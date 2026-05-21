@@ -104,7 +104,7 @@ def configure_lm() -> None:
     # Only require a key for providers that need one.
     # Ollama and other local servers don't.
     provider = model.split("/", 1)[0] if "/" in model else ""
-    needs_key = provider not in ("ollama", "ollama_chat")
+    needs_key = provider not in ("ollama", "ollama_chat") and not api_base
     if needs_key and not api_key:
         msg = (
             f"\n  No LM configured (provider={provider!r} needs a key).\n"

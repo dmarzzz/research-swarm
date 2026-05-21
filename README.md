@@ -3,16 +3,20 @@
 ```
       ·   ·
    ·  ◆    ·   ·       r e s e a r c h - s w a r m
- ·   ◆   ◆   ◆   ·     a DSPy ReAct agent that thinks
-   ◆   ◆   ◆    ·      out loud, cites its sources,
+ ·   ◆   ◆   ◆   ·     a local-first research harness that
+   ◆   ◆   ◆    ·      thinks out loud, cites its sources,
       ·   ·            and remembers what you asked last time.
 ```
 
 </div>
 
-A small, scrappy [DSPy](https://github.com/stanfordnlp/dspy) [ReAct](https://arxiv.org/abs/2210.03629) research agent. Point it at a question. It picks tools, reads pages, and writes you back a grounded answer with real citations. Every page it reads lands in a local archive so the next time you ask something adjacent, it answers faster and from material it already trusts.
+A small, scrappy [ReAct](https://arxiv.org/abs/2210.03629) research harness with DSPy and Codex app-server backends. Point it at a question. It picks tools, reads pages, and writes you back a grounded answer with real citations. Every page it reads lands in a local archive so the next time you ask something adjacent, it answers faster and from material it already trusts.
 
-No API keys required. Works fully local with Ollama. Works remote with any [litellm](https://github.com/BerriAI/litellm) provider.
+Backends:
+
+- `dspy`: uses DSPy + litellm with Ollama, Anthropic, OpenAI, or any other supported provider.
+- `codex`: uses `codex app-server` through [`codex-control`](https://github.com/cybernetic-physics/codex-control) and the user's existing Codex CLI/Desktop auth.
+- `auto`: uses DSPy when `.env` or the shell provides an LM config; otherwise uses Codex when `codex app-server` is available.
 
 ---
 
@@ -58,16 +62,23 @@ The next time you ask about mixnets, most of it's already in your archive.
 git clone https://github.com/dmarzzz/research-swarm.git
 cd research-swarm
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e '.[codex]'     # DSPy and Codex backends
+# or: pip install -e .        # DSPy-only install
 
-# pick an LM (one of these)
 cp .env.example .env
+research-agent doctor
+
+# .env defaults to RA_BACKEND=auto.
+# For DSPy, add one of these:
 # Option A — fully local, no key:
 #   LM_MODEL=ollama/qwen3:35b         (needs Ollama running; see below)
 # Option B — hosted:
 #   ANTHROPIC_API_KEY=sk-ant-...
 # Option C — anything litellm supports:
 #   LM_MODEL=openai/gpt-4o and LM_API_KEY=sk-...
+#
+# For Codex, leave LM_MODEL/API keys unset or set:
+#   RA_BACKEND=codex
 
 # first query
 research-agent "your question here"
@@ -81,7 +92,7 @@ research-agent "your question here"
 
 ### `research-agent "..."` — single
 
-One ReAct loop. The agent picks from ~12 tools turn by turn until it has enough to write a synthesis. This is the default. Usually what you want.
+One ReAct loop. The selected backend picks from ~12 Python-owned tools turn by turn until it has enough to write a synthesis. This is the default. Usually what you want.
 
 ### `research-agent --parallel "..."` — STORM fan-out
 
@@ -95,6 +106,19 @@ research-agent --parallel "survey the design space of anonymous communication sy
 
 The default pipeline runs a self-critique pass after synthesis that flags fabricated citations, coverage gaps, and low-grounding claims. Skip it with `--no-critique` when you just want the answer fast.
 
+### `--backend {auto,codex,dspy}` — choose the reasoning backend
+
+`auto` is the default. It uses DSPy when `.env` or the shell provides `LM_MODEL`, `ANTHROPIC_API_KEY`, or an OpenAI-compatible local `LM_API_BASE`. If DSPy is not configured, it uses Codex when `codex app-server` is available. In both modes, Python executes the research tools.
+
+Set `RA_BACKEND` in `.env` when you want a persistent default. A CLI flag always wins over `.env`, so `research-agent --backend codex "..."` overrides `RA_BACKEND=dspy`.
+
+```bash
+research-agent --backend codex "compare Loopix and Tor"
+research-agent --backend dspy "compare Loopix and Tor"
+research-agent --codex-model gpt-5.4 --codex-effort low "survey mixnets"
+research-agent doctor
+```
+
 ---
 
 ## What actually happens
@@ -104,9 +128,9 @@ The default pipeline runs a self-critique pass after synthesis that flags fabric
        │
        ▼
   ┌─────────────┐         ┌─────────────────────────────────┐
-  │   DSPy      │  picks  │  web_search · local_search      │
-  │   ReAct     │──────►  │  arxiv_search · fetch_url       │
-  │   loop      │  tool   │  github_search · extract_links  │
+  │ Codex or    │  picks  │  web_search · local_search      │
+  │ DSPy ReAct  │──────►  │  arxiv_search · fetch_url       │
+  │ controller  │  tool   │  github_search · extract_links  │
   └─────────────┘  by     │  verify_arxiv_citations · ...   │
        ▲           turn   └────────────┬────────────────────┘
        │                               │
@@ -133,7 +157,7 @@ The archive grows every query. After a week of use on the same topic, most of wh
 
 ## Research traces
 
-Every run writes a JSON trace to `runs/YYYYMMDD-HHMMSS-<slug>.json`: the question, every tool call with inputs and result sizes, the synthesis, sources, and critique. The trace is the unit of reproducibility. You can replay a run, diff two runs on the same question, or hand the file to a downstream tool.
+Every run writes a JSON trace to `runs/YYYYMMDD-HHMMSS-<slug>.json`: the question, backend, Python-owned tool calls, synthesis, sources, sub-results for parallel mode, backend metadata, and critique. The legacy top-level `question`, `synthesis`, `sources`, and `critique` fields are preserved so downstream tools keep working.
 
 ```bash
 $ research-agent "what is Loopix and how does it beat Tor?"
@@ -194,9 +218,27 @@ See `examples/` for more (hello-world, custom tool, parallel mode).
 
 ## Customize
 
-### swap the LM
+### choose the backend / LM
 
-Anything [litellm](https://docs.litellm.ai/docs/providers) supports. Set `LM_MODEL` and the appropriate `LM_API_KEY` / `LM_API_BASE` in `.env`.
+`RA_BACKEND` sets the default backend:
+
+```bash
+RA_BACKEND=auto        # default: DSPy if configured, else Codex if available
+RA_BACKEND=dspy        # make DSPy the persistent default
+RA_BACKEND=codex       # make Codex the persistent default
+CODEX_MODEL=gpt-5.4
+CODEX_EFFORT=low
+CODEX_TIMEOUT_SEC=600
+```
+
+Command-line flags override `.env`:
+
+```bash
+research-agent --backend dspy "use DSPy for this run"
+research-agent --backend codex "use Codex for this run"
+```
+
+Anything [litellm](https://docs.litellm.ai/docs/providers) supports works in DSPy mode. Set `LM_MODEL` and the appropriate `LM_API_KEY` / `LM_API_BASE` in `.env` or the shell.
 
 ```bash
 LM_MODEL=ollama/qwen3:35b                          # fully local
@@ -249,8 +291,11 @@ Queries containing temporal markers (`"latest"`, `"today"`, current year) auto-b
 
 ```
 src/research_agent/
-├── agent.py          ResearchTask Signature · build_agent (DSPy ReAct) · configure_lm
-├── parallel.py       decompose → fan-out → merge (STORM pattern)
+├── agent.py          legacy-compatible DSPy ResearchTask · build_agent · configure_lm
+├── backends/         DSPy runner · Codex app-server runner · backend selection
+├── tool_registry.py  Python-owned tool specs, validation, dispatch
+├── types.py          backend-neutral ResearchResult / ToolCallRecord
+├── parallel.py       backend-neutral decompose → fan-out → merge plus legacy DSPy path
 ├── critic.py         self-critique pass (flags fabrications, coverage gaps)
 ├── tools.py          every tool the agent can pick
 ├── log.py            per-run JSON logs in runs/
@@ -277,7 +322,7 @@ Partially. Your local archive and `local_search` work 100% offline. `web_search`
 That repo was an experiment that evolved into [searxng-wth-frnds](https://github.com/dmarzzz/searxng-wth-frnds), which adds peer-to-peer slice replication and friend-to-friend search. This repo is the standalone agent, decoupled, zero P2P, one clear job.
 
 **What LMs have you actually run it on?**
-Claude Sonnet and Ollama running Qwen locally. Anything litellm supports should work.
+Codex app-server for the Codex backend; Claude Sonnet and Ollama running Qwen locally for the DSPy backend. Anything litellm supports should work in DSPy mode.
 
 **It claims 12 tools. Why does the agent only call 3–4 per run?**
 ReAct picks the minimum set. Most queries need `web_search` + `fetch_url` + `finish`. Complex research questions pull in `arxiv_search`, `verify_arxiv_citations`, `extract_links`. The tool pool matters more for breadth of coverage than per-query tool count.
@@ -289,7 +334,7 @@ The biggest single failure mode of research agents. The critic pass flags them. 
 
 ## Stack
 
-[DSPy](https://github.com/stanfordnlp/dspy) · [trafilatura](https://trafilatura.readthedocs.io/) · [ddgs](https://pypi.org/project/ddgs/) · [arxiv.py](https://github.com/lukasschwab/arxiv.py) · [litellm](https://github.com/BerriAI/litellm) (via DSPy) · SQLite FTS5
+[`codex-control`](https://github.com/cybernetic-physics/codex-control) · [DSPy](https://github.com/stanfordnlp/dspy) · [trafilatura](https://trafilatura.readthedocs.io/) · [ddgs](https://pypi.org/project/ddgs/) · [arxiv.py](https://github.com/lukasschwab/arxiv.py) · [litellm](https://github.com/BerriAI/litellm) (via DSPy) · SQLite FTS5
 
 ## License
 
