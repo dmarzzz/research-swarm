@@ -1,0 +1,974 @@
+<!doctype html>
+<!--
+  source: source.md
+  aesthetic: _pipeline-snapshot/aesthetic/default.yaml
+  generated_by: content-pipeline/formats/explainer-video
+  panels: 8
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unlinkable agent commerce, 2026</title>
+  <style>
+    :root {
+      --bg: #FAF8F4;
+      --ink: #1c1c1c;
+      --ink-soft: #4a4744;
+      --rule: #d8d2c4;
+      --accent: #B5482A;
+      --paper: #f1ece1;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      font-feature-settings: "ss01", "cv11", "tnum";
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    body {
+      font-size: 17px;
+      line-height: 1.55;
+    }
+    main { display: block; }
+
+    .panel {
+      min-height: 100vh;
+      padding: 6vh 6vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-bottom: 1px solid var(--rule);
+      position: relative;
+    }
+    .panel:last-child { border-bottom: none; }
+
+    .panel-inner {
+      max-width: 56rem;
+      width: 100%;
+      margin: 0 auto;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 800ms ease, transform 800ms ease;
+    }
+    .panel.in-view .panel-inner { opacity: 1; transform: translateY(0); }
+
+    .marker {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 0 0 1.25rem 0;
+      display: flex;
+      align-items: baseline;
+      gap: 0.9rem;
+    }
+    .marker .idx {
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .marker .rule {
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+      transform: translateY(-3px);
+    }
+
+    h1, h2 {
+      font-family: var(--font);
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      margin: 0 0 1.25rem 0;
+      color: var(--ink);
+    }
+    h1 {
+      font-size: clamp(2rem, 4.6vw, 3.4rem);
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+    }
+    h2 {
+      font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+      line-height: 1.15;
+    }
+    p {
+      margin: 0 0 1rem 0;
+      max-width: 38rem;
+      color: var(--ink);
+    }
+    p.lede {
+      font-size: clamp(1.15rem, 1.7vw, 1.35rem);
+      line-height: 1.45;
+      color: var(--ink);
+      max-width: 42rem;
+    }
+    p.aside {
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      max-width: 38rem;
+    }
+    .accent { color: var(--accent); }
+    code, .mono {
+      font-family: var(--mono);
+      font-size: 0.92em;
+    }
+
+    .viz {
+      margin: 1.75rem 0 0.25rem;
+      width: 100%;
+    }
+    svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+
+    /* --- panel 1: hook --- */
+    .hook-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.5rem;
+      margin-top: 2.25rem;
+      max-width: 46rem;
+    }
+    .hook-stat {
+      border-top: 1px solid var(--rule);
+      padding-top: 0.85rem;
+    }
+    .hook-stat .num {
+      font-family: var(--font);
+      font-weight: 500;
+      font-size: clamp(1.5rem, 2.6vw, 2rem);
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      line-height: 1;
+      display: block;
+    }
+    .hook-stat .num .accent-mark {
+      color: var(--accent);
+    }
+    .hook-stat .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-top: 0.5rem;
+      display: block;
+      line-height: 1.4;
+    }
+
+    /* --- panel 2: stack --- */
+    .stack {
+      display: grid;
+      grid-template-columns: 7rem 1fr 12rem;
+      gap: 0;
+      border: 1px solid var(--ink);
+      max-width: 44rem;
+      margin-top: 1.5rem;
+      background: var(--bg);
+    }
+    .stack-row {
+      display: contents;
+    }
+    .stack-cell {
+      padding: 0.85rem 1rem;
+      border-top: 1px solid var(--rule);
+      font-size: 0.95rem;
+      line-height: 1.35;
+    }
+    .stack-row:first-child .stack-cell { border-top: none; }
+    .stack-cell.layer {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      border-right: 1px solid var(--rule);
+      background: var(--paper);
+    }
+    .stack-cell.name {
+      font-weight: 500;
+    }
+    .stack-cell.expo {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-soft);
+      border-left: 1px solid var(--rule);
+    }
+    .stack-cell.expo.hot { color: var(--accent); }
+    .panel.in-view .stack-row .stack-cell {
+      animation: rowFade 600ms ease both;
+    }
+    .panel.in-view .stack-row:nth-child(1) .stack-cell { animation-delay: 120ms; }
+    .panel.in-view .stack-row:nth-child(2) .stack-cell { animation-delay: 260ms; }
+    .panel.in-view .stack-row:nth-child(3) .stack-cell { animation-delay: 400ms; }
+    .panel.in-view .stack-row:nth-child(4) .stack-cell { animation-delay: 540ms; }
+    @keyframes rowFade {
+      from { opacity: 0; transform: translateX(-6px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* --- panel 3: discourse vs threat --- */
+    .bars {
+      display: grid;
+      grid-template-columns: 8rem 1fr 1fr;
+      gap: 0;
+      align-items: center;
+      max-width: 44rem;
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+    }
+    .bars-header {
+      display: contents;
+    }
+    .bars-header > div {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding: 0 0.75rem 0.65rem;
+      border-bottom: 1px solid var(--rule);
+    }
+    .bars-row {
+      display: contents;
+    }
+    .bars-row > div {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--rule);
+    }
+    .bars-row > .lbl {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .bar {
+      height: 8px;
+      background: var(--paper);
+      position: relative;
+      overflow: hidden;
+    }
+    .bar > span {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: var(--ink);
+      width: 0;
+      transition: width 1200ms cubic-bezier(.2,.7,.2,1);
+    }
+    .bar.accent-bar > span { background: var(--accent); }
+    .panel.in-view .bar > span { width: var(--w, 50%); }
+
+    /* --- panel 4: taxonomy heatmap --- */
+    .heatmap-wrap {
+      margin-top: 1.5rem;
+      max-width: 50rem;
+    }
+    .heatmap {
+      display: grid;
+      grid-template-columns: 13rem repeat(10, 1fr);
+      border: 1px solid var(--ink);
+      background: var(--bg);
+      font-size: 12px;
+    }
+    .heatmap > div {
+      padding: 0.5rem 0.55rem;
+      border-right: 1px solid var(--rule);
+      border-top: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.25rem;
+    }
+    .heatmap > div:nth-child(11n + 1) {
+      justify-content: flex-start;
+      border-right: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+      letter-spacing: 0.04em;
+      background: var(--paper);
+    }
+    .heatmap .hdr {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      background: var(--paper) !important;
+      border-top: none;
+    }
+    .heatmap .hdr.name {
+      justify-content: flex-start;
+      border-right: 1px solid var(--ink);
+    }
+    .cell {
+      position: relative;
+      opacity: 0;
+      transition: opacity 500ms ease;
+    }
+    .panel.in-view .cell { opacity: 1; }
+    .cell .dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--ink);
+    }
+    .cell.t-yes .dot { background: var(--ink); }
+    .cell.t-mid .dot {
+      background: transparent;
+      border: 1.5px solid var(--ink);
+    }
+    .cell.t-no .dot {
+      background: var(--accent);
+    }
+    .heat-legend {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.85rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+      letter-spacing: 0.06em;
+      flex-wrap: wrap;
+    }
+    .heat-legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
+    .heat-legend .dot {
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+    }
+    .heat-legend .yes { background: var(--ink); }
+    .heat-legend .mid { background: transparent; border: 1.5px solid var(--ink); }
+    .heat-legend .no { background: var(--accent); }
+    /* progressive cell reveal */
+    .panel.in-view .heatmap .cell {
+      animation: cellIn 50ms ease both;
+    }
+    @keyframes cellIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* --- panel 5: agentic search --- */
+    .search-flow {
+      margin-top: 1.5rem;
+      max-width: 46rem;
+    }
+    .search-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--ink);
+    }
+    .search-cell {
+      padding: 0.85rem 0.9rem;
+      border-left: 1px solid var(--rule);
+      font-size: 0.92rem;
+    }
+    .search-cell:first-child { border-left: none; }
+    .search-cell .k {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+    .search-cell .v {
+      font-family: var(--font);
+      font-weight: 500;
+      font-size: 1.1rem;
+      letter-spacing: -0.01em;
+    }
+
+    /* --- panel 6: open problems --- */
+    .problems {
+      margin-top: 1.5rem;
+      max-width: 46rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      border-top: 1px solid var(--ink);
+    }
+    .problem {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--rule);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 600ms ease, transform 600ms ease;
+    }
+    .panel.in-view .problem { opacity: 1; transform: translateY(0); }
+    .panel.in-view .problem:nth-child(1) { transition-delay: 150ms; }
+    .panel.in-view .problem:nth-child(2) { transition-delay: 320ms; }
+    .panel.in-view .problem:nth-child(3) { transition-delay: 490ms; }
+    .problem .pnum {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      padding-top: 0.15rem;
+    }
+    .problem h3 {
+      margin: 0 0 0.35rem 0;
+      font-weight: 500;
+      font-size: 1.1rem;
+      letter-spacing: -0.005em;
+    }
+    .problem p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* --- panel 7: composed stack --- */
+    .compose {
+      margin-top: 1.5rem;
+      max-width: 46rem;
+      display: grid;
+      gap: 0;
+      border: 1px solid var(--ink);
+      background: var(--bg);
+    }
+    .compose-row {
+      display: grid;
+      grid-template-columns: 5rem 1fr;
+      border-top: 1px solid var(--rule);
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 600ms ease, transform 600ms ease;
+    }
+    .compose-row:first-child { border-top: none; }
+    .panel.in-view .compose-row { opacity: 1; transform: translateX(0); }
+    .panel.in-view .compose-row:nth-child(1) { transition-delay: 100ms; }
+    .panel.in-view .compose-row:nth-child(2) { transition-delay: 260ms; }
+    .panel.in-view .compose-row:nth-child(3) { transition-delay: 420ms; }
+    .panel.in-view .compose-row:nth-child(4) { transition-delay: 580ms; }
+    .compose-row .lab {
+      background: var(--paper);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding: 0.85rem 0.9rem;
+      border-right: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+    }
+    .compose-row .body {
+      padding: 0.85rem 1rem;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--ink);
+    }
+    .compose-row .body .v2 {
+      color: var(--ink-soft);
+      display: block;
+      margin-top: 0.2rem;
+    }
+
+    /* --- panel 8: takeaway --- */
+    .end-line {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      max-width: 42rem;
+      margin-top: 0.5rem;
+    }
+    .end-line .yr {
+      font-family: var(--mono);
+      font-weight: 500;
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .end-line .yr small {
+      font-size: 0.45em;
+      color: var(--ink-soft);
+      margin-left: 0.35em;
+      letter-spacing: 0.1em;
+    }
+    .end-foot {
+      margin-top: 3rem;
+      border-top: 1px solid var(--rule);
+      padding-top: 1.25rem;
+      max-width: 42rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .end-foot a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      border-bottom: 1px solid var(--rule);
+    }
+    .end-foot a:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* --- scroll progress --- */
+    .progress {
+      position: fixed;
+      left: 0; top: 0; right: 0;
+      height: 2px;
+      background: transparent;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 80ms linear;
+    }
+
+    .colophon {
+      position: fixed;
+      left: 1.25rem;
+      bottom: 1rem;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .colophon .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 0.6rem;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 720px) {
+      .hook-stats { grid-template-columns: 1fr; }
+      .stack { grid-template-columns: 5.5rem 1fr 7.5rem; }
+      .stack-cell { font-size: 0.85rem; padding: 0.7rem 0.7rem; }
+      .bars { grid-template-columns: 6rem 1fr 1fr; font-size: 0.8rem; }
+      .heatmap { grid-template-columns: 8rem repeat(10, 1fr); font-size: 10px; }
+      .heatmap > div { padding: 0.35rem 0.25rem; min-height: 1.75rem; }
+      .search-grid { grid-template-columns: repeat(2, 1fr); }
+      .search-cell { border-left: none; border-top: 1px solid var(--rule); }
+      .search-cell:nth-child(-n+2) { border-top: none; }
+      .compose-row { grid-template-columns: 3.5rem 1fr; }
+      .colophon { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .panel-inner,
+      .panel.in-view .stack-row .stack-cell,
+      .bar > span,
+      .cell,
+      .problem,
+      .compose-row {
+        transition: none !important;
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><span id="bar"></span></div>
+  <div class="colophon" aria-hidden="true"><span class="dot"></span>flashbots research workstream</div>
+
+  <main>
+
+    <!-- PANEL 1: HOOK -->
+    <section class="panel" id="p1">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">01</span><span>Crystallization</span><span class="rule"></span><span>05.2026</span></p>
+        <h1>The agentic commerce default <br/>is hardening, in public, <br/>at <span class="accent">production volume.</span></h1>
+        <p class="lede">Five months ago, none of these existed in their current form. They do now. Each layer is reasonable on its own. The composition is the surveillance dataset of the late 2020s.</p>
+        <div class="hook-stats" role="list">
+          <div class="hook-stat" role="listitem">
+            <span class="num">$<span class="accent-mark">600</span>M</span>
+            <span class="label">x402 annualized<br/>volume, Base + Solana</span>
+          </div>
+          <div class="hook-stat" role="listitem">
+            <span class="num"><span class="accent-mark">22.9</span>k</span>
+            <span class="label">ERC-8004 agents,<br/>first three days of mainnet</span>
+          </div>
+          <div class="hook-stat" role="listitem">
+            <span class="num"><span class="accent-mark">FIDO</span></span>
+            <span class="label">AP2 mandate model<br/>donated, April 2026</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: THE FOUR LAYERS -->
+    <section class="panel" id="p2">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">02</span><span>The four-layer stack</span><span class="rule"></span></p>
+        <h2>Agent commerce is four layers.<br/>Privacy is the conjunction.</h2>
+        <p>A deployment can be private at one layer and leaky at another. The composite property only holds if every layer holds. Most existing literature lives at one rung.</p>
+        <div class="viz">
+          <div class="stack" role="table" aria-label="Four layers of agent commerce">
+            <div class="stack-row" role="row">
+              <div class="stack-cell layer" role="cell">L4</div>
+              <div class="stack-cell name" role="cell">Workload: API shape, content, session continuity</div>
+              <div class="stack-cell expo hot" role="cell">underweighted</div>
+            </div>
+            <div class="stack-row" role="row">
+              <div class="stack-cell layer" role="cell">L3</div>
+              <div class="stack-cell name" role="cell">Protocol &amp; identity: x402, MPP, ERC-8004, AP2</div>
+              <div class="stack-cell expo" role="cell">where discourse is</div>
+            </div>
+            <div class="stack-row" role="row">
+              <div class="stack-cell layer" role="cell">L2</div>
+              <div class="stack-cell name" role="cell">Credential: ACT, ZK credits, Boomerang, Coconut</div>
+              <div class="stack-cell expo" role="cell">well-trodden</div>
+            </div>
+            <div class="stack-row" role="row">
+              <div class="stack-cell layer" role="cell">L1</div>
+              <div class="stack-cell name" role="cell">Network: DC-nets, mixnets, anonymous broadcast</div>
+              <div class="stack-cell expo hot" role="cell">underweighted</div>
+            </div>
+          </div>
+        </div>
+        <p class="aside">L1 (network metadata) and L4 (workload structure and content) carry the deepest threats. The taxonomy is upside-down from the conversation.</p>
+      </div>
+    </section>
+
+    <!-- PANEL 3: DISCOURSE vs THREAT -->
+    <section class="panel" id="p3">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">03</span><span>Discourse vs threat</span><span class="rule"></span></p>
+        <h2>The conversation lives at L2 and L3.<br/>The de-anonymization lives at L1 and L4.</h2>
+        <p>Every paper in the credential layer is about payment unlinkability. For inference workloads, prompt content alone is enough to re-identify, regardless of which payment scheme carries the bytes.</p>
+        <div class="viz">
+          <div class="bars" aria-label="Mismatch between research attention and threat severity">
+            <div class="bars-header">
+              <div>Layer</div>
+              <div>Research &amp; discourse attention</div>
+              <div>Practical threat surface</div>
+            </div>
+            <div class="bars-row">
+              <div class="lbl">L1 Network</div>
+              <div><div class="bar" style="--w:18%"><span></span></div></div>
+              <div><div class="bar accent-bar" style="--w:82%"><span></span></div></div>
+            </div>
+            <div class="bars-row">
+              <div class="lbl">L2 Credential</div>
+              <div><div class="bar" style="--w:88%"><span></span></div></div>
+              <div><div class="bar accent-bar" style="--w:42%"><span></span></div></div>
+            </div>
+            <div class="bars-row">
+              <div class="lbl">L3 Protocol</div>
+              <div><div class="bar" style="--w:74%"><span></span></div></div>
+              <div><div class="bar accent-bar" style="--w:55%"><span></span></div></div>
+            </div>
+            <div class="bars-row">
+              <div class="lbl">L4 Workload</div>
+              <div><div class="bar" style="--w:14%"><span></span></div></div>
+              <div><div class="bar accent-bar" style="--w:90%"><span></span></div></div>
+            </div>
+          </div>
+        </div>
+        <p class="aside">Bars are qualitative, derived from the proportion of recent literature and the placement of the deepest open problems. Stylometric de-anonymization of inference prompts is the largest unaddressed threat in the stack.</p>
+      </div>
+    </section>
+
+    <!-- PANEL 4: TAXONOMY HEATMAP -->
+    <section class="panel" id="p4">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">04</span><span>Workload taxonomy</span><span class="rule"></span></p>
+        <h2>Ten dimensions. Three clusters.</h2>
+        <p>Score an API spec along ten axes (session shape, idempotency, correlatability, side-effect locus, temporal profile, payload size, pricing unit, identity coupling, reputation, content fingerprint). Workloads sort into three clusters: native, recoverable, identity-dominated.</p>
+        <div class="viz">
+          <div class="heatmap-wrap">
+            <div class="heatmap" role="table" aria-label="Workload anonymity amenability across ten dimensions">
+              <div class="hdr name">Workload</div>
+              <div class="hdr">D1</div><div class="hdr">D2</div><div class="hdr">D3</div><div class="hdr">D4</div><div class="hdr">D5</div><div class="hdr">D6</div><div class="hdr">D7</div><div class="hdr">D8</div><div class="hdr">D9</div><div class="hdr">D10</div>
+
+              <div>Agentic search</div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+
+              <div>LLM single-turn</div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+
+              <div>LLM multi-turn chat</div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+
+              <div>RAG, public corpus</div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-mid"><span class="dot"></span></div>
+
+              <div>DEX trade</div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+
+              <div>MCP send_email</div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-yes"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+              <div class="cell t-no"><span class="dot"></span></div>
+            </div>
+            <div class="heat-legend" aria-label="Legend">
+              <span><span class="dot yes"></span>native fit</span>
+              <span><span class="dot mid"></span>recoverable with care</span>
+              <span><span class="dot no"></span>identity-dominated</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 5: AGENTIC SEARCH -->
+    <section class="panel" id="p5">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">05</span><span>Leaf use case</span><span class="rule"></span></p>
+        <h2>Agentic search is the cleanest fit<br/>in the entire stack.</h2>
+        <p>Every dimension lands in the anonymity-friendly value. The volume is real and growing. The cryptographic primitives exist at L2. The transport primitives exist at L1. The standards conversation has not yet wired them together.</p>
+        <div class="viz">
+          <div class="search-flow">
+            <div class="search-grid" role="list">
+              <div class="search-cell" role="listitem">
+                <span class="k">Calls per question</span>
+                <span class="v">10<span style="color:var(--ink-soft)">,</span>2 <small style="font-size:0.6em;color:var(--ink-soft);font-family:var(--mono);letter-spacing:0.06em">to 100+</small></span>
+              </div>
+              <div class="search-cell" role="listitem">
+                <span class="k">Latency per leaf</span>
+                <span class="v">669ms <small style="font-size:0.6em;color:var(--ink-soft);font-family:var(--mono);letter-spacing:0.06em">brave</small></span>
+              </div>
+              <div class="search-cell" role="listitem">
+                <span class="k">Cost per leaf</span>
+                <span class="v">$0.005 <small style="font-size:0.6em;color:var(--ink-soft);font-family:var(--mono);letter-spacing:0.06em">perplexity</small></span>
+              </div>
+              <div class="search-cell" role="listitem">
+                <span class="k">Response shape</span>
+                <span class="v">KB text</span>
+              </div>
+            </div>
+          </div>
+          <svg viewBox="0 0 720 120" width="100%" height="120" aria-label="Agentic search fanout illustration" style="margin-top:1.5rem">
+            <defs>
+              <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 z" fill="#1c1c1c"/>
+              </marker>
+            </defs>
+            <g fill="none" stroke="#1c1c1c" stroke-width="1">
+              <circle cx="60" cy="60" r="14" fill="#FAF8F4"/>
+              <text x="60" y="64" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="11" fill="#1c1c1c" stroke="none">Q</text>
+              <line x1="80" y1="60" x2="180" y2="60" marker-end="url(#arrowhead)" stroke-dasharray="0">
+                <animate attributeName="stroke-dashoffset" from="100" to="0" dur="900ms" begin="0.2s" fill="freeze"/>
+                <animate attributeName="stroke-dasharray" from="100" to="0" dur="900ms" begin="0.2s" fill="freeze"/>
+              </line>
+              <rect x="180" y="46" width="80" height="28" fill="#FAF8F4"/>
+              <text x="220" y="64" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="10" fill="#1c1c1c" stroke="none">decompose</text>
+
+              <g stroke-dasharray="200">
+                <line x1="260" y1="60" x2="380" y2="18" marker-end="url(#arrowhead)"/>
+                <line x1="260" y1="60" x2="380" y2="42" marker-end="url(#arrowhead)"/>
+                <line x1="260" y1="60" x2="380" y2="60" marker-end="url(#arrowhead)" stroke="#B5482A"/>
+                <line x1="260" y1="60" x2="380" y2="78" marker-end="url(#arrowhead)"/>
+                <line x1="260" y1="60" x2="380" y2="102" marker-end="url(#arrowhead)"/>
+              </g>
+
+              <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="10" fill="#4a4744" stroke="none">
+                <text x="390" y="22">exa</text>
+                <text x="390" y="46">perplexity</text>
+                <text x="390" y="64" fill="#B5482A">$0.005</text>
+                <text x="390" y="82">anthropic</text>
+                <text x="390" y="106">brave</text>
+              </g>
+
+              <line x1="560" y1="60" x2="660" y2="60" stroke-dasharray="3 4"/>
+              <text x="670" y="64" font-family="JetBrains Mono, ui-monospace, monospace" font-size="10" fill="#4a4744" stroke="none">x N</text>
+            </g>
+          </svg>
+        </div>
+        <p class="aside">Cross-merchant by design: a single Deep Research run touches dozens of sources. This is exactly the correlation graph a unified facilitator sees today.</p>
+      </div>
+    </section>
+
+    <!-- PANEL 6: OPEN PROBLEMS -->
+    <section class="panel" id="p6">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">06</span><span>Open problems</span><span class="rule"></span></p>
+        <h2>Three load-bearing gaps,<br/>nobody is closing in the open.</h2>
+        <p>Eight in the source. Three with the highest ratio of leverage to attention.</p>
+        <div class="problems" role="list">
+          <article class="problem" role="listitem">
+            <div class="pnum">01 / 08</div>
+            <div>
+              <h3>The proof-of-payment field in ERC-8004.</h3>
+              <p>Optional in v1, expected to populate as reputation systems mature. Every reputation-bearing call carrying an on-chain receipt is the quietest, most production-ready de-anonymization in the entire stack. A ZK-validator extension is the right defense.</p>
+            </div>
+          </article>
+          <article class="problem" role="listitem">
+            <div class="pnum">02 / 08</div>
+            <div>
+              <h3>ACT-of-N: Coconut-threshold ACT.</h3>
+              <p>ACT is single-issuer-and-origin. Bringing its credit-bearing semantics into Coconut-shaped t-of-n threshold issuance removes the issuer-compulsion gap. PhD-thesis-shaped piece of work. Nobody is working on it in the open.</p>
+            </div>
+          </article>
+          <article class="problem" role="listitem">
+            <div class="pnum">08 / 08</div>
+            <div>
+              <h3>Stylometric de-anonymization of inference prompts.</h3>
+              <p>The single most underweighted threat. The content of the prompt is sufficient for re-identification regardless of payment scheme. Anonymous payment for inference is a partial answer until prompt-stylometric resistance ships.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 7: COMPOSED REFERENCE DESIGN -->
+    <section class="panel" id="p7">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">07</span><span>An integrated reference</span><span class="rule"></span></p>
+        <h2>The pieces exist.<br/>The wiring does not.</h2>
+        <p>One existence proof for the canonical agentic-search case. Not a proposal. The point is that every box already has a credible occupant.</p>
+        <div class="viz">
+          <div class="compose" role="table" aria-label="Composed reference design across the four layers">
+            <div class="compose-row" role="row">
+              <div class="lab" role="cell">L4</div>
+              <div class="body" role="cell">
+                agentic web search
+                <span class="v2">D1 atomic, D8 identity-free, D10 medium</span>
+              </div>
+            </div>
+            <div class="compose-row" role="row">
+              <div class="lab" role="cell">L3</div>
+              <div class="body" role="cell">
+                Authorization: PrivateToken (RFC 9577), ACT presentation
+                <span class="v2">MPP only at issuance, for multi-rail payment to PSP</span>
+              </div>
+            </div>
+            <div class="compose-row" role="row">
+              <div class="lab" role="cell">L2</div>
+              <div class="body" role="cell">
+                ACT in publicly-verifiable BBS instantiation
+                <span class="v2">v2: Coconut-threshold ACT-of-N</span>
+              </div>
+            </div>
+            <div class="compose-row" role="row">
+              <div class="lab" role="cell">L1</div>
+              <div class="body" role="cell">
+                Flashnet for forward path (anytrust DC-net)
+                <span class="v2">Nym mixnet SURB for response path (asymmetric anonymity, honest)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="aside">One wiring, not the only one. The first contribution this workstream can make is to do the wiring.</p>
+      </div>
+    </section>
+
+    <!-- PANEL 8: TAKEAWAY -->
+    <section class="panel" id="p8">
+      <div class="panel-inner">
+        <p class="marker"><span class="idx">08</span><span>Takeaway</span><span class="rule"></span></p>
+        <h2>The default that crystallizes by end of 2026<br/>is the default for the next decade.</h2>
+        <p class="lede">The cryptographic and transport primitives to make that default privacy-respecting all exist. They do not yet talk to each other. The window is now.</p>
+        <div class="end-line">
+          <div class="yr">2026<small>crystallization year</small></div>
+        </div>
+        <div class="end-foot">
+          <span>dmarz / flashbots</span>
+          <span><a href="source.md">read the full artifact</a></span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    (function () {
+      var panels = document.querySelectorAll('.panel');
+      var bar = document.getElementById('bar');
+
+      if ('IntersectionObserver' in window) {
+        var obs = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) e.target.classList.add('in-view');
+          });
+        }, { threshold: 0.28, rootMargin: '0px 0px -8% 0px' });
+        panels.forEach(function (p) { obs.observe(p); });
+      } else {
+        panels.forEach(function (p) { p.classList.add('in-view'); });
+      }
+
+      function onScroll() {
+        var doc = document.documentElement;
+        var h = doc.scrollHeight - doc.clientHeight;
+        var pct = h > 0 ? Math.min(100, (doc.scrollTop || document.body.scrollTop) / h * 100) : 0;
+        if (bar) bar.style.width = pct.toFixed(2) + '%';
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
+</body>
+</html>
