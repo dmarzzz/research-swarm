@@ -1,0 +1,197 @@
+name: release-binaries
+
+# Build PyInstaller single-file binaries for the `research-agent` CLI on
+# every release tag, plus on-demand via workflow_dispatch for ad-hoc test
+# packs (no upload to the release page — artifacts only). Designed so
+# hosts that want to embed the agent (e.g. the Shape Rotator OS Electron
+# app — see dmarzzz/shape-rotator-os apps/os/swarm-node.js) can fetch a
+# single self-contained executable per (os, arch) from the GitHub release.
+#
+# Naming convention so embedders can resolve assets without parsing the
+# release body (mirrors swf-node's pattern):
+#   research-agent-<version>-mac-arm64
+#   research-agent-<version>-mac-x64
+#   research-agent-<version>-linux-x64
+#   research-agent-<version>-linux-arm64
+# Windows is intentionally deferred for v1 — embedders that need it
+# fall back to a stub (SROS already handles missing assets gracefully).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      pack-only:
+        description: "Build + upload as workflow artifact only (no release upload). Useful for testing the matrix without cutting a tag."
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # required for softprops/action-gh-release to attach assets
+
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    # 35-min wall clock per matrix leg. The PyInstaller build with
+    # litellm + dspy collected runs in ~5-8 min locally; the rest is
+    # buffer for GH's runner queue (mac-x64 in particular has been
+    # chronically slow on GH's free tier). With `fail-fast: false`
+    # already set, a timeout cancels JUST that leg; the others keep
+    # going and the release-binaries workflow completes (with a
+    # partial asset set) in a bounded time.
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: mac-arm64
+            runner: macos-14
+            os: mac
+            arch: arm64
+          - label: mac-x64
+            runner: macos-13
+            os: mac
+            arch: x64
+          - label: linux-x64
+            runner: ubuntu-24.04
+            os: linux
+            arch: x64
+          - label: linux-arm64
+            runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          # On tag pushes use the tag (minus the leading `v`). On
+          # workflow_dispatch use a dev-stamped version so artifact
+          # names are still unique and easy to grep.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v="0.0.0-dev.${GITHUB_SHA::7}"
+          fi
+          echo "version=${v}" >> "$GITHUB_OUTPUT"
+          echo "asset=research-agent-${v}-${{ matrix.label }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          # pyproject.toml requires-python = ">=3.10". PyInstaller bundles
+          # the interpreter, so the runtime host needs no Python at all.
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + PyInstaller
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install 'pyinstaller>=6.10'
+
+      - name: Build single-file binary
+        shell: bash
+        run: |
+          # The pyproject script entrypoint is `research_agent.main:main`.
+          # PyInstaller can't ingest the `module:func` form directly, so
+          # we generate a tiny shim that calls it.
+          cat > _pyi_entrypoint.py <<'PY'
+          import sys
+          from research_agent.main import main
+          if __name__ == "__main__":
+              sys.exit(main() or 0)
+          PY
+
+          # --collect-all (rather than --collect-submodules) is the right
+          # default for these three: each ships data files alongside
+          # Python modules that the agent reads at runtime, and missing
+          # any of them crashes the binary the first time the relevant
+          # codepath fires.
+          #
+          # litellm — model_prices_and_context_window_backup.json (loaded
+          #   on import, validated locally)
+          # dspy — predictor/streaming submodules import lazily; data
+          #   files for some adapters
+          # trafilatura — language detection model + tag rules
+          #
+          # arxiv + ddgs are flat and small; just hint them as hidden
+          # imports so the static analyzer picks them up.
+          pyinstaller \
+            --onefile \
+            --clean \
+            --noconfirm \
+            --name "${{ steps.ver.outputs.asset }}" \
+            --collect-all research_agent \
+            --collect-all dspy \
+            --collect-all litellm \
+            --collect-all trafilatura \
+            --hidden-import arxiv \
+            --hidden-import ddgs \
+            _pyi_entrypoint.py
+
+          ls -lh dist/
+
+      - name: Smoke test — --version
+        shell: bash
+        run: |
+          # If PyInstaller missed a hidden import or a data file, the
+          # binary crashes on import (before main() runs). --version
+          # exercises the full import graph: research_agent → agent →
+          # dspy → litellm (which loads model_prices_and_context_window
+          # _backup.json at import time). Anything that breaks under
+          # `--collect-all` surfaces here.
+          binary="dist/${{ steps.ver.outputs.asset }}"
+          chmod +x "$binary"
+          (cd "$(mktemp -d)" && "$GITHUB_WORKSPACE/$binary" --version)
+
+      - name: Smoke test — --help
+        shell: bash
+        run: |
+          binary="$GITHUB_WORKSPACE/dist/${{ steps.ver.outputs.asset }}"
+          # argparse rendering exercises the CLI plumbing. Doesn't need
+          # an LM or a swf-node sidecar.
+          (cd "$(mktemp -d)" && "$binary" --help) > /dev/null
+
+      - name: Upload workflow artifact (always)
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.ver.outputs.asset }}
+          path: dist/${{ steps.ver.outputs.asset }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach to GitHub Release (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/${{ steps.ver.outputs.asset }}
+          fail_on_unmatched_files: true
+          append_body: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ─── notes ───────────────────────────────────────────────────────────
+# Windows is deferred for v1. Embedders (SROS) fall back to a stub
+# for missing assets so the swarm panel still degrades gracefully
+# on Windows hosts — it just shows "swarm not installed" until a
+# Windows binary lands here.
+#
+# Local reproduction (mac-arm64):
+#   pip install -e . 'pyinstaller>=6.10'
+#   pyinstaller --onefile --clean --noconfirm \
+#     --name research-agent-test-mac-arm64 \
+#     --collect-all research_agent --collect-all dspy \
+#     --collect-all litellm --collect-all trafilatura \
+#     --hidden-import arxiv --hidden-import ddgs \
+#     _pyi_entrypoint.py
+#   ./dist/research-agent-test-mac-arm64 --version
