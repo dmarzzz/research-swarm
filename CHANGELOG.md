@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 — release binaries + swf-node backend
+
+- Single-file PyInstaller binaries published per (mac-arm64, mac-x64, linux-x64, linux-arm64) on every tagged release. Embedders (e.g. Shape Rotator OS) fetch the matching `(os, arch)` asset at build time and spawn it as a sidecar; no Python runtime required on the host. Asset names follow the pattern `research-agent-<version>-<os>-<arch>`.
+- `RA_BACKEND=swf-node` env mode (added in 0.1.x · #3) is now first-class. With `SWF_NODE_URL` + `SWF_NODE_TOKEN` set, all web traffic (`web_search`, `fetch_url`, `fetch_urls_parallel`) routes through a local swf-node peer instead of going direct to DDG / public URLs — the peer becomes the single ingest point.
+
 ## 0.1.1 — polish pass
 
 - Welcome screen when `research-agent` is run without a question (replaces the argparse error wall).
