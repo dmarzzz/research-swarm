@@ -39,6 +39,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from ddgs import DDGS
 
+from research_agent.web import swf_backend
+
 
 def _log(msg: str) -> None:
     if os.environ.get("RA_VERBOSE"):
@@ -179,6 +181,21 @@ def web_search(query: str, fresh: bool = False) -> str:
         Formatted blocks of `- title\\n  url\\n  snippet`, up to ~16
         results, with a header showing where they came from.
     """
+    # ── 0. swf-node backend short-circuit ────────────────────────────────
+    # When the agent is embedded in a host with a swf-node sidecar (Shape
+    # Rotator OS), all web traffic goes through the peer. The peer owns
+    # archive writes + privacy policy + atlas visibility — agent stays
+    # thin. See research_agent/web/swf_backend.py for the env vars.
+    if swf_backend.enabled():
+        try:
+            merged = swf_backend.web_search(query, n=16)
+        except Exception as exc:
+            raise RuntimeError(f"web_search via swf-node failed: {exc}") from exc
+        if not merged:
+            return "No web results found for that query."
+        header = f"[web_search SWF-NODE · merged={len(merged)}]\n"
+        return header + _fmt_results(merged[:16])
+
     # ── 1. Staleness + cache gates ───────────────────────────────────────
     env_bypass = os.environ.get("RA_BYPASS_CACHE") in ("1", "true", "yes")
     temporal = None if (env_bypass or fresh) else _query_is_time_sensitive(query)

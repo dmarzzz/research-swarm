@@ -22,6 +22,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from research_agent.web import swf_backend
 from research_agent.web.knowledge import world_write
 
 
@@ -141,6 +142,14 @@ def _fetch_jina(url: str, timeout: int = 30) -> str:
 
 def _get_clean_text(url: str) -> tuple[str, str, str]:
     """Returns (text, title, extractor). Raises on total failure."""
+    # 0. swf-node backend short-circuit — peer owns the fetch + archive
+    #    write + privacy gate. Skip local cache too (peer has its own).
+    if swf_backend.enabled():
+        text = swf_backend.fetch_url(url)
+        if not text:
+            raise RuntimeError(f"swf-node returned empty content for {url}")
+        return text, "", "swf-node"
+
     # 1. cache
     cached = _read_cache(url)
     if cached is not None:
