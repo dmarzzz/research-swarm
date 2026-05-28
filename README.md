@@ -273,6 +273,19 @@ from mytools import search_arxiv_by_author
 return dspy.ReAct(ResearchTask, tools=[..., search_arxiv_by_author], max_iters=28)
 ```
 
+### run as a thin client behind a swf-node peer
+
+When the agent is embedded in a host that already runs a [swf-node](https://github.com/dmarzzz/searxng-wth-frnds) sidecar — for example the [Shape Rotator OS](https://github.com/dmarzzz/shape-rotator-os) Electron app — set `RA_BACKEND=swf-node` and the agent will route all of its web traffic (`web_search`, `fetch_url`, `fetch_urls_parallel`) through the peer's HTTP API instead of going direct to DDG / public URLs. The peer becomes the single ingest point: it owns the archive write, applies the user's privacy policy, and is the surface that downstream visualizers (atlas, etc.) listen to.
+
+```bash
+RA_BACKEND=swf-node                       # enables this mode (default: direct)
+SWF_NODE_URL=http://127.0.0.1:7777        # base URL of the local peer
+SWF_NODE_TOKEN=<bearer>                   # required for /fetch* endpoints
+SWF_PUBLIC_EGRESS=1                       # allow peer to hit public web (default 1)
+```
+
+The default (`RA_BACKEND=direct` or unset) is unchanged — DDG + trafilatura + Jina, write-through to `~/world_knowledge/`. Non-embedded users see no behavior change.
+
 ### tune the cache
 
 ```bash
